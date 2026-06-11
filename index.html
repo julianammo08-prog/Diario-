@@ -163,16 +163,12 @@
 </header>
 
 <main id="dayView">
-  <div class="card">
-    <h2>Dose della settimana</h2>
+  <div class="card" id="doseCard" style="display:none;">
+    <h2>Dose Programmata</h2>
     <div class="dose-row">
       <div class="field">
         <label for="dose">Dose (mg)</label>
-        <input type="number" id="dose" inputmode="decimal" step="0.05" placeholder="es. 0,5">
-      </div>
-      <div class="field">
-        <label for="doseTime">Giorno / ora iniezione</label>
-        <input type="text" id="doseTime" placeholder="es. lun mattina">
+        <input type="number" id="dose" inputmode="decimal" step="any" placeholder="es. 0,5">
       </div>
     </div>
   </div>
@@ -199,7 +195,7 @@
         <table>
           <thead>
             <tr>
-              <th>Giorno</th><th>Fame</th><th>Sete</th><th>Stanch.</th><th>Nausea</th><th>Stipsi</th><th>Mal testa</th><th>Sonno</th><th>Note</th>
+              <th>Giorno</th><th>Fame</th><th>Sete</th><th>Stanch.</th><th>Nausea</th><th>Stipsi</th><th>Mal testa</th><th>Sonno Ins.</th><th>Note</th>
             </tr>
           </thead>
           <tbody id="summaryBody"></tbody>
@@ -227,7 +223,7 @@ const SYMPTOMS = [
   {key:'nausea', label:'Nausea', warn:true},
   {key:'stipsi', label:'Stipsi', warn:true},
   {key:'maltesta', label:'Mal di testa', warn:true},
-  {key:'sonno', label:'Qualità del sonno', warn:false},
+  {key:'sonno', label:'Sonno insufficiente', warn:false},
 ];
 
 const giorni = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
@@ -243,8 +239,13 @@ function fmtFull(d){
 function fmtShort(d){
   return d.getDate()+"/"+String(d.getMonth()+1).padStart(2,'0');
 }
+function getDaysDiff(d) {
+  const utc1 = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const utc2 = Date.UTC(START_DATE.getFullYear(), START_DATE.getMonth(), START_DATE.getDate());
+  return Math.floor((utc1 - utc2) / 86400000);
+}
 function weekIndex(d){
-  const diff = Math.floor((d - START_DATE)/86400000);
+  const diff = getDaysDiff(d);
   return Math.floor(diff/7);
 }
 function clampDate(d){
@@ -257,7 +258,7 @@ function clampDate(d){
 
 let current = clampDate(new Date(2026,5,9));
 
-const STORAGE_KEY = 'sema_diario_v1';
+const STORAGE_KEY = 'sema_diario_v2';
 function loadAll(){
   try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }catch(e){ return {}; }
 }
@@ -310,10 +311,15 @@ function renderDay(){
   const entry = DATA[dKey] || {};
   document.getElementById('notes').value = entry.notes || '';
 
-  const wKey = 'week-'+wIdx;
-  const wEntry = DATA[wKey] || {};
-  document.getElementById('dose').value = wEntry.dose || '';
-  document.getElementById('doseTime').value = wEntry.doseTime || '';
+  // Logica per mostrare la dose ogni 10 giorni
+  const daysDiff = getDaysDiff(current);
+  const doseCard = document.getElementById('doseCard');
+  if (daysDiff >= 0 && daysDiff % 10 === 0) {
+    doseCard.style.display = 'block';
+    document.getElementById('dose').value = entry.dose || '';
+  } else {
+    doseCard.style.display = 'none';
+  }
 
   current._tmp = {};
   SYMPTOMS.forEach(s=>{
@@ -338,24 +344,23 @@ function renderDay(){
 
 function saveDay(){
   const dKey = dateKey(current);
-  const wIdx = weekIndex(current)+1;
-  const wKey = 'week-'+wIdx;
-
   const entry = DATA[dKey] || {};
+  
   SYMPTOMS.forEach(s=>{
     if(current._tmp && current._tmp[s.key]!==undefined){
       entry[s.key] = current._tmp[s.key];
     }
   });
   entry.notes = document.getElementById('notes').value;
+
+  const daysDiff = getDaysDiff(current);
+  if (daysDiff >= 0 && daysDiff % 10 === 0) {
+    entry.dose = document.getElementById('dose').value;
+  }
+
   DATA[dKey]=entry;
-
-  const wEntry = DATA[wKey] || {};
-  wEntry.dose = document.getElementById('dose').value;
-  wEntry.doseTime = document.getElementById('doseTime').value;
-  DATA[wKey]=wEntry;
-
   saveAll(DATA);
+
   const saveBtn = document.getElementById('saveBtn');
   saveBtn.classList.add('saved');
   saveBtn.textContent='Salvato ✓';
