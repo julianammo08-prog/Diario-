@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sema Diario">
+<meta name="theme-color" content="#F5F1EA">
+<link rel="manifest" href="manifest.json">
+<title>Diario Semaglutide</title>
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+  :root{
+    --bg:#F5F1EA;
+    --card:#FFFFFF;
+    --ink:#2B3A36;
+    --muted:#7C8A85;
+    --sage:#5C8374;
+    --sage-light:#DCE8E2;
+    --terracotta:#C97B5C;
+    --line:#E4DED2;
+    --shadow: 0 2px 14px rgba(43,58,54,0.06);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding-bottom: 90px;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    position: sticky; top:0; z-index:10;
+    background: var(--bg);
+    padding: env(safe-area-inset-top) 20px 12px 20px;
+    padding-top: calc(env(safe-area-inset-top) + 18px);
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow{
+    font-size: 11px; letter-spacing:.16em; text-transform:uppercase;
+    color: var(--sage); font-weight:700; margin:0 0 4px 0;
+  }
+  h1{
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 26px; margin:0; font-weight:600; letter-spacing:-0.01em;
+  }
+  .nav{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:14px;
+  }
+  .nav button{
+    width:40px;height:40px;border-radius:50%;border:1px solid var(--line);
+    background:var(--card); font-size:18px; color:var(--sage); display:flex;
+    align-items:center; justify-content:center;
+  }
+  .nav button:active{ background: var(--sage-light); }
+  .date-display{ text-align:center; }
+  .date-display .day{ font-size:17px; font-weight:600; }
+  .date-display .week{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+  main{ padding: 16px 16px 0 16px; max-width:520px; margin:0 auto; }
+
+  .card{
+    background: var(--card); border-radius:16px; padding:16px 16px 6px 16px;
+    margin-bottom:14px; box-shadow: var(--shadow);
+  }
+  .card h2{
+    font-size:13px; text-transform:uppercase; letter-spacing:.1em;
+    color: var(--muted); margin:0 0 12px 0; font-weight:700;
+  }
+  .dose-row{ display:flex; gap:10px; }
+  .field{ flex:1; }
+  .field label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .field input[type=number], .field input[type=text]{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    font-size:16px; background:#FBFAF7; color:var(--ink); font-family:inherit;
+  }
+  .field input:focus{ outline:none; border-color:var(--sage); }
+
+  .symptom{ margin-bottom:18px; }
+  .symptom:last-child{ margin-bottom:10px; }
+  .symptom-head{
+    display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;
+  }
+  .symptom-name{ font-size:15px; font-weight:600; }
+  .symptom-value{
+    font-family: Georgia, serif; font-size:20px; font-weight:700; color:var(--sage);
+    width:28px; text-align:right;
+  }
+  .scale{
+    display:flex; gap:6px;
+  }
+  .scale button{
+    flex:1; height:38px; border-radius:9px; border:1px solid var(--line);
+    background:#FBFAF7; font-size:14px; font-weight:600; color:var(--muted);
+    font-family:inherit;
+  }
+  .scale button.active{
+    background: var(--sage); border-color:var(--sage); color:#fff;
+  }
+  .scale button.active.warn{
+    background: var(--terracotta); border-color: var(--terracotta);
+  }
+
+  textarea{
+    width:100%; min-height:90px; border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; font-size:15px; font-family:inherit; resize:vertical;
+    background:#FBFAF7; color:var(--ink);
+  }
+  textarea:focus{ outline:none; border-color:var(--sage); }
+
+  .save-bar{
+    position:fixed; bottom:0; left:0; right:0;
+    padding: 10px 16px calc(env(safe-area-inset-bottom) + 10px) 16px;
+    background: linear-gradient(to top, var(--bg) 60%, rgba(245,241,234,0));
+  }
+  .save-bar .inner{ max-width:520px; margin:0 auto; }
+  .save-btn{
+    width:100%; padding:15px; border:none; border-radius:14px;
+    background: var(--sage); color:#fff; font-size:16px; font-weight:700;
+    font-family:inherit; box-shadow: var(--shadow);
+  }
+  .save-btn.saved{ background:#4F7263; }
+  .save-btn:active{ transform: scale(0.99); }
+
+  .summary-link{
+    text-align:center; margin: 4px 0 18px 0;
+  }
+  .summary-link a{
+    font-size:13px; color:var(--sage); text-decoration:none; font-weight:600;
+    border-bottom:1px solid var(--sage-light);
+  }
+
+  /* Summary view */
+  #summary{ display:none; }
+  #summary table{ width:100%; border-collapse:collapse; font-size:12px; }
+  #summary th, #summary td{ border:1px solid var(--line); padding:6px 4px; text-align:center; }
+  #summary th{ background:var(--sage-light); font-size:10px; text-transform:uppercase; letter-spacing:.04em; }
+  #summary td.note{ text-align:left; font-size:11px; max-width:140px; }
+  #summary .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:12px; }
+  #summary .back{
+    display:inline-block; margin-bottom:14px; font-size:13px; color:var(--sage);
+    text-decoration:none; font-weight:600;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Percorso semaglutide</p>
+  <h1>Diario giornaliero</h1>
+  <div class="nav">
+    <button id="prevDay" aria-label="Giorno precedente">‹</button>
+    <div class="date-display">
+      <div class="day" id="dayLabel"></div>
+      <div class="week" id="weekLabel"></div>
+    </div>
+    <button id="nextDay" aria-label="Giorno successivo">›</button>
+  </div>
+</header>
+
+<main id="dayView">
+  <div class="card">
+    <h2>Dose della settimana</h2>
+    <div class="dose-row">
+      <div class="field">
+        <label for="dose">Dose (mg)</label>
+        <input type="number" id="dose" inputmode="decimal" step="0.05" placeholder="es. 0,5">
+      </div>
+      <div class="field">
+        <label for="doseTime">Giorno / ora iniezione</label>
+        <input type="text" id="doseTime" placeholder="es. lun mattina">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Sintomi di oggi · scala 0&ndash;5</h2>
+    <div id="symptoms"></div>
+  </div>
+
+  <div class="card">
+    <h2>Note e osservazioni</h2>
+    <textarea id="notes" placeholder="Come ti sei sentito oggi? Peso, idratazione, sonno, domande per il medico..."></textarea>
+  </div>
+
+  <div class="summary-link"><a href="#" id="goSummary">Vedi riepilogo settimanale →</a></div>
+</main>
+
+<div id="summary">
+  <main>
+    <a href="#" class="back" id="backFromSummary">← Torna al diario</a>
+    <div class="card">
+      <h2 id="summaryWeekLabel">Settimana</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Giorno</th><th>Fame</th><th>Sete</th><th>Stanch.</th><th>Nausea</th><th>Stipsi</th><th>Mal testa</th><th>Sonno</th><th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="summaryBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="summary-link"><a href="#" id="prevWeekSummary">← settimana prec.</a> &nbsp;|&nbsp; <a href="#" id="nextWeekSummary">settimana succ. →</a></div>
+  </main>
+</div>
+
+<div class="save-bar">
+  <div class="inner">
+    <button class="save-btn" id="saveBtn">Salva giornata</button>
+  </div>
+</div>
+
+<script>
+const START_DATE = new Date(2026,5,9); // 09/06/2026
+const TOTAL_DAYS = 17*7; // 4 mesi ≈ 17 settimane
+
+const SYMPTOMS = [
+  {key:'fame', label:'Fame', warn:false},
+  {key:'sete', label:'Sete', warn:false},
+  {key:'stanchezza', label:'Stanchezza', warn:true},
+  {key:'nausea', label:'Nausea', warn:true},
+  {key:'stipsi', label:'Stipsi', warn:true},
+  {key:'maltesta', label:'Mal di testa', warn:true},
+  {key:'sonno', label:'Qualità del sonno', warn:false},
+];
+
+const giorni = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
+const giorniBrevi = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
+const mesi = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
+
+function dateKey(d){
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0');
+}
+function fmtFull(d){
+  return giorni[d.getDay()]+" "+d.getDate()+" "+mesi[d.getMonth()]+" "+d.getFullYear();
+}
+function fmtShort(d){
+  return d.getDate()+"/"+String(d.getMonth()+1).padStart(2,'0');
+}
+function weekIndex(d){
+  const diff = Math.floor((d - START_DATE)/86400000);
+  return Math.floor(diff/7);
+}
+function clampDate(d){
+  const minD = new Date(START_DATE);
+  const maxD = new Date(START_DATE); maxD.setDate(maxD.getDate()+TOTAL_DAYS-1);
+  if(d<minD) return new Date(minD);
+  if(d>maxD) return new Date(maxD);
+  return d;
+}
+
+let current = clampDate(new Date(2026,5,9));
+
+const STORAGE_KEY = 'sema_diario_v1';
+function loadAll(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }catch(e){ return {}; }
+}
+function saveAll(data){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+let DATA = loadAll();
+
+const symptomsEl = document.getElementById('symptoms');
+SYMPTOMS.forEach(s=>{
+  const wrap = document.createElement('div');
+  wrap.className='symptom';
+  wrap.innerHTML = `
+    <div class="symptom-head">
+      <span class="symptom-name">${s.label}</span>
+      <span class="symptom-value" id="val-${s.key}">&ndash;</span>
+    </div>
+    <div class="scale" id="scale-${s.key}">
+      ${[0,1,2,3,4,5].map(n=>`<button data-v="${n}">${n}</button>`).join('')}
+    </div>`;
+  symptomsEl.appendChild(wrap);
+
+  wrap.querySelectorAll('.scale button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const v = btn.dataset.v;
+      setSymptom(s.key, v, s.warn);
+    });
+  });
+});
+
+function setSymptom(key, value, warn){
+  document.querySelectorAll(`#scale-${key} button`).forEach(b=>{
+    const active = b.dataset.v === String(value);
+    b.classList.toggle('active', active);
+    b.classList.toggle('warn', active && warn && Number(value)>=3);
+  });
+  document.getElementById(`val-${key}`).textContent = value;
+  current._tmp = current._tmp || {};
+  current._tmp[key]=value;
+}
+
+function renderDay(){
+  document.getElementById('dayLabel').textContent = fmtFull(current);
+  const wIdx = weekIndex(current)+1;
+  const dKey = dateKey(current);
+  const wStart = new Date(START_DATE); wStart.setDate(wStart.getDate()+(wIdx-1)*7);
+  const wEnd = new Date(wStart); wEnd.setDate(wEnd.getDate()+6);
+  document.getElementById('weekLabel').textContent = `Settimana ${wIdx} · ${fmtShort(wStart)}–${fmtShort(wEnd)}`;
+
+  const entry = DATA[dKey] || {};
+  document.getElementById('notes').value = entry.notes || '';
+
+  const wKey = 'week-'+wIdx;
+  const wEntry = DATA[wKey] || {};
+  document.getElementById('dose').value = wEntry.dose || '';
+  document.getElementById('doseTime').value = wEntry.doseTime || '';
+
+  current._tmp = {};
+  SYMPTOMS.forEach(s=>{
+    const v = entry[s.key];
+    document.querySelectorAll(`#scale-${s.key} button`).forEach(b=>b.classList.remove('active','warn'));
+    if(v!==undefined && v!==null){
+      setSymptom(s.key, v, s.warn);
+    } else {
+      document.getElementById(`val-${s.key}`).textContent='–';
+    }
+  });
+
+  const minD = START_DATE;
+  const maxD = new Date(START_DATE); maxD.setDate(maxD.getDate()+TOTAL_DAYS-1);
+  document.getElementById('prevDay').style.visibility = (dateKey(current)===dateKey(minD))?'hidden':'visible';
+  document.getElementById('nextDay').style.visibility = (dateKey(current)===dateKey(maxD))?'hidden':'visible';
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.classList.remove('saved');
+  saveBtn.textContent='Salva giornata';
+}
+
+function saveDay(){
+  const dKey = dateKey(current);
+  const wIdx = weekIndex(current)+1;
+  const wKey = 'week-'+wIdx;
+
+  const entry = DATA[dKey] || {};
+  SYMPTOMS.forEach(s=>{
+    if(current._tmp && current._tmp[s.key]!==undefined){
+      entry[s.key] = current._tmp[s.key];
+    }
+  });
+  entry.notes = document.getElementById('notes').value;
+  DATA[dKey]=entry;
+
+  const wEntry = DATA[wKey] || {};
+  wEntry.dose = document.getElementById('dose').value;
+  wEntry.doseTime = document.getElementById('doseTime').value;
+  DATA[wKey]=wEntry;
+
+  saveAll(DATA);
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.classList.add('saved');
+  saveBtn.textContent='Salvato ✓';
+}
+
+document.getElementById('saveBtn').addEventListener('click', saveDay);
+document.getElementById('prevDay').addEventListener('click', ()=>{
+  const d = new Date(current); d.setDate(d.getDate()-1);
+  current = clampDate(d); renderDay();
+});
+document.getElementById('nextDay').addEventListener('click', ()=>{
+  const d = new Date(current); d.setDate(d.getDate()+1);
+  current = clampDate(d); renderDay();
+});
+
+let summaryWeek = 1;
+function renderSummary(){
+  const total = Math.ceil(TOTAL_DAYS/7);
+  if(summaryWeek<1) summaryWeek=1;
+  if(summaryWeek>total) summaryWeek=total;
+  const wStart = new Date(START_DATE); wStart.setDate(wStart.getDate()+(summaryWeek-1)*7);
+  const wEnd = new Date(wStart); wEnd.setDate(wEnd.getDate()+6);
+  document.getElementById('summaryWeekLabel').textContent =
+    `Settimana ${summaryWeek} · ${fmtShort(wStart)}–${fmtShort(wEnd)}`;
+
+  const tbody = document.getElementById('summaryBody');
+  tbody.innerHTML='';
+  for(let i=0;i<7;i++){
+    const d = new Date(wStart); d.setDate(d.getDate()+i);
+    const entry = DATA[dateKey(d)] || {};
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${giorniBrevi[d.getDay()]} ${fmtShort(d)}</td>` +
+      SYMPTOMS.map(s=>`<td>${entry[s.key]!==undefined?entry[s.key]:'–'}</td>`).join('') +
+      `<td class="note">${(entry.notes||'').replace(/</g,'&lt;')}</td>`;
+    tbody.appendChild(tr);
+  }
+  document.getElementById('prevWeekSummary').style.visibility = summaryWeek<=1?'hidden':'visible';
+  document.getElementById('nextWeekSummary').style.visibility = summaryWeek>=total?'hidden':'visible';
+}
+
+document.getElementById('goSummary').addEventListener('click', e=>{
+  e.preventDefault();
+  summaryWeek = weekIndex(current)+1;
+  renderSummary();
+  document.getElementById('dayView').style.display='none';
+  document.querySelector('.save-bar').style.display='none';
+  document.getElementById('summary').style.display='block';
+});
+document.getElementById('backFromSummary').addEventListener('click', e=>{
+  e.preventDefault();
+  document.getElementById('summary').style.display='none';
+  document.getElementById('dayView').style.display='block';
+  document.querySelector('.save-bar').style.display='block';
+});
+document.getElementById('prevWeekSummary').addEventListener('click', e=>{
+  e.preventDefault(); summaryWeek--; renderSummary();
+});
+document.getElementById('nextWeekSummary').addEventListener('click', e=>{
+  e.preventDefault(); summaryWeek++; renderSummary();
+});
+
+renderDay();
+
+// REGISTRAZIONE SERVICE WORKER (Necessario per PWA)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('Service Worker registrato con successo!', reg))
+      .catch(err => console.error('Errore registrazione Service Worker:', err));
+  });
+}
+</script>
+</body>
+</html>
