@@ -31,6 +31,10 @@
     color: var(--ink);
     padding-bottom: 40px;
     -webkit-font-smoothing:antialiased;
+    /* Garantisce che la pagina sia sempre scorrevole oltre il viewport,
+       cosi' la voce "vedi riepilogo settimanale" e il pulsante "Salva"
+       possano sempre essere raggiunti scorrendo fino in fondo. */
+    min-height: calc(100vh + 140px);
   }
   header{
     position: sticky; top:0; z-index:10;
@@ -79,6 +83,7 @@
     font-size:16px; background:#FBFAF7; color:var(--ink); font-family:inherit;
   }
   .field input:focus{ outline:none; border-color:var(--sage); }
+  .field .hint{ font-size:11px; color:var(--muted); margin-top:6px; }
 
   .symptom{ margin-bottom:18px; }
   .symptom:last-child{ margin-bottom:10px; }
@@ -113,7 +118,16 @@
   textarea:focus{ outline:none; border-color:var(--sage); }
 
   .save-bar{
-    margin: 20px 0 20px 0; 
+    margin: 20px 0 20px 0;
+    /* Il pulsante "Salva giornata" e' nascosto finche' l'utente non
+       scorre fino al fondo della pagina. */
+    display:none;
+    opacity:0;
+    transition: opacity .25s ease;
+  }
+  .save-bar.visible{
+    display:block;
+    opacity:1;
   }
   .save-bar .inner{ max-width:520px; margin:0 auto; }
   .save-btn{
@@ -169,6 +183,7 @@
       <div class="field">
         <label for="dose">Dose (mg)</label>
         <input type="text" id="dose" inputmode="decimal" placeholder="es. 0,5">
+        <div class="hint">Usa la virgola per i decimali (es. 1,25)</div>
       </div>
     </div>
   </div>
@@ -183,7 +198,7 @@
     <textarea id="notes" placeholder="Come ti sei sentito oggi? Peso, idratazione, sonno, domande per il medico..."></textarea>
   </div>
 
-  <div class="save-bar">
+  <div class="save-bar" id="saveBar">
     <div class="inner">
       <button class="save-btn" id="saveBtn">Salva giornata</button>
     </div>
@@ -214,7 +229,7 @@
 
 <script>
 const START_DATE = new Date(2026,5,9); // 09/06/2026
-const TOTAL_DAYS = 17*7; // 4 mesi ≈ 17 settimane
+const TOTAL_DAYS = 17*7; // 17 settimane
 
 const SYMPTOMS = [
   {key:'fame', label:'Fame', warn:false},
@@ -256,6 +271,8 @@ function clampDate(d){
   return d;
 }
 
+// Apre sempre il diario alla data odierna (entro il range del percorso),
+// cosi' dopo ogni salvataggio/reload si parte dal giorno attuale e non dall'inizio.
 let current = clampDate(new Date());
 
 const STORAGE_KEY = 'sema_diario_v2';
@@ -300,6 +317,22 @@ function setSymptom(key, value, warn){
   current._tmp[key]=value;
 }
 
+// Validazione campo dose: permette solo cifre e una virgola decimale (es. "1,25")
+const doseInput = document.getElementById('dose');
+doseInput.addEventListener('input', (e)=>{
+  let v = e.target.value;
+  // sostituisce eventuali punti con la virgola
+  v = v.replace(/\./g, ',');
+  // mantiene solo cifre e virgola
+  v = v.replace(/[^0-9,]/g, '');
+  // permette una sola virgola
+  const parts = v.split(',');
+  if(parts.length > 2){
+    v = parts[0] + ',' + parts.slice(1).join('');
+  }
+  e.target.value = v;
+});
+
 function renderDay(){
   document.getElementById('dayLabel').textContent = fmtFull(current);
   const wIdx = weekIndex(current)+1;
@@ -311,6 +344,7 @@ function renderDay(){
   const entry = DATA[dKey] || {};
   document.getElementById('notes').value = entry.notes || '';
 
+  // La voce "Dose Programmata" compare ogni 7 giorni a partire dal giorno 0 (09/06)
   const daysDiff = getDaysDiff(current);
   const doseCard = document.getElementById('doseCard');
   if (daysDiff >= 0 && daysDiff % 7 === 0) {
@@ -339,6 +373,11 @@ function renderDay(){
   const saveBtn = document.getElementById('saveBtn');
   saveBtn.classList.remove('saved');
   saveBtn.textContent='Salva giornata';
+
+  // Nasconde il pulsante "Salva" finche' non si torna a scorrere fino al fondo,
+  // poi verifica subito la posizione di scorrimento corrente.
+  document.getElementById('saveBar').classList.remove('visible');
+  checkScroll();
 }
 
 function saveDay(){
@@ -365,14 +404,31 @@ function saveDay(){
   saveBtn.textContent='Salvato ✓';
 }
 
+// Mostra il pulsante "Salva giornata" solo quando si e' scorso fino al fondo della pagina
+function checkScroll(){
+  if(document.getElementById('summary').style.display === 'block') return;
+  const scrollPos = window.scrollY + window.innerHeight;
+  const pageHeight = document.documentElement.scrollHeight;
+  const saveBar = document.getElementById('saveBar');
+  if(scrollPos >= pageHeight - 24){
+    saveBar.classList.add('visible');
+  } else {
+    saveBar.classList.remove('visible');
+  }
+}
+window.addEventListener('scroll', checkScroll, {passive:true});
+window.addEventListener('resize', checkScroll);
+
 document.getElementById('saveBtn').addEventListener('click', saveDay);
 document.getElementById('prevDay').addEventListener('click', ()=>{
   const d = new Date(current); d.setDate(d.getDate()-1);
   current = clampDate(d); renderDay();
+  window.scrollTo(0,0);
 });
 document.getElementById('nextDay').addEventListener('click', ()=>{
   const d = new Date(current); d.setDate(d.getDate()+1);
   current = clampDate(d); renderDay();
+  window.scrollTo(0,0);
 });
 
 let summaryWeek = 1;
@@ -406,11 +462,14 @@ document.getElementById('goSummary').addEventListener('click', e=>{
   renderSummary();
   document.getElementById('dayView').style.display='none';
   document.getElementById('summary').style.display='block';
+  window.scrollTo(0,0);
 });
 document.getElementById('backFromSummary').addEventListener('click', e=>{
   e.preventDefault();
   document.getElementById('summary').style.display='none';
   document.getElementById('dayView').style.display='block';
+  window.scrollTo(0,0);
+  checkScroll();
 });
 document.getElementById('prevWeekSummary').addEventListener('click', e=>{
   e.preventDefault(); summaryWeek--; renderSummary();
