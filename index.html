@@ -29,7 +29,7 @@
     font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     background: var(--bg);
     color: var(--ink);
-    padding-bottom: 90px;
+    padding-bottom: 40px;
     -webkit-font-smoothing:antialiased;
   }
   header{
@@ -113,25 +113,25 @@
   textarea:focus{ outline:none; border-color:var(--sage); }
 
   .save-bar{
-    position:fixed; bottom:0; left:0; right:0;
-    padding: 10px 16px calc(env(safe-area-inset-bottom) + 10px) 16px;
-    background: linear-gradient(to top, var(--bg) 60%, rgba(245,241,234,0));
+    margin: 20px 0 20px 0; 
   }
   .save-bar .inner{ max-width:520px; margin:0 auto; }
   .save-btn{
     width:100%; padding:15px; border:none; border-radius:14px;
     background: var(--sage); color:#fff; font-size:16px; font-weight:700;
     font-family:inherit; box-shadow: var(--shadow);
+    cursor: pointer;
   }
   .save-btn.saved{ background:#4F7263; }
   .save-btn:active{ transform: scale(0.99); }
 
   .summary-link{
-    text-align:center; margin: 4px 0 18px 0;
+    text-align:center; margin: 24px 0 30px 0;
   }
   .summary-link a{
     font-size:13px; color:var(--sage); text-decoration:none; font-weight:600;
     border-bottom:1px solid var(--sage-light);
+    padding: 10px;
   }
 
   /* Summary view */
@@ -168,7 +168,7 @@
     <div class="dose-row">
       <div class="field">
         <label for="dose">Dose (mg)</label>
-        <input type="number" id="dose" inputmode="decimal" step="any" placeholder="es. 0,5">
+        <input type="text" id="dose" inputmode="decimal" placeholder="es. 0,5">
       </div>
     </div>
   </div>
@@ -181,6 +181,12 @@
   <div class="card">
     <h2>Note e osservazioni</h2>
     <textarea id="notes" placeholder="Come ti sei sentito oggi? Peso, idratazione, sonno, domande per il medico..."></textarea>
+  </div>
+
+  <div class="save-bar">
+    <div class="inner">
+      <button class="save-btn" id="saveBtn">Salva giornata</button>
+    </div>
   </div>
 
   <div class="summary-link"><a href="#" id="goSummary">Vedi riepilogo settimanale →</a></div>
@@ -204,12 +210,6 @@
     </div>
     <div class="summary-link"><a href="#" id="prevWeekSummary">← settimana prec.</a> &nbsp;|&nbsp; <a href="#" id="nextWeekSummary">settimana succ. →</a></div>
   </main>
-</div>
-
-<div class="save-bar">
-  <div class="inner">
-    <button class="save-btn" id="saveBtn">Salva giornata</button>
-  </div>
 </div>
 
 <script>
@@ -256,7 +256,7 @@ function clampDate(d){
   return d;
 }
 
-let current = clampDate(new Date(2026,5,9));
+let current = clampDate(new Date());
 
 const STORAGE_KEY = 'sema_diario_v2';
 function loadAll(){
@@ -311,10 +311,9 @@ function renderDay(){
   const entry = DATA[dKey] || {};
   document.getElementById('notes').value = entry.notes || '';
 
-  // Logica per mostrare la dose ogni 10 giorni
   const daysDiff = getDaysDiff(current);
   const doseCard = document.getElementById('doseCard');
-  if (daysDiff >= 0 && daysDiff % 10 === 0) {
+  if (daysDiff >= 0 && daysDiff % 7 === 0) {
     doseCard.style.display = 'block';
     document.getElementById('dose').value = entry.dose || '';
   } else {
@@ -354,7 +353,7 @@ function saveDay(){
   entry.notes = document.getElementById('notes').value;
 
   const daysDiff = getDaysDiff(current);
-  if (daysDiff >= 0 && daysDiff % 10 === 0) {
+  if (daysDiff >= 0 && daysDiff % 7 === 0) {
     entry.dose = document.getElementById('dose').value;
   }
 
@@ -406,14 +405,12 @@ document.getElementById('goSummary').addEventListener('click', e=>{
   summaryWeek = weekIndex(current)+1;
   renderSummary();
   document.getElementById('dayView').style.display='none';
-  document.querySelector('.save-bar').style.display='none';
   document.getElementById('summary').style.display='block';
 });
 document.getElementById('backFromSummary').addEventListener('click', e=>{
   e.preventDefault();
   document.getElementById('summary').style.display='none';
   document.getElementById('dayView').style.display='block';
-  document.querySelector('.save-bar').style.display='block';
 });
 document.getElementById('prevWeekSummary').addEventListener('click', e=>{
   e.preventDefault(); summaryWeek--; renderSummary();
@@ -424,7 +421,6 @@ document.getElementById('nextWeekSummary').addEventListener('click', e=>{
 
 renderDay();
 
-// REGISTRAZIONE SERVICE WORKER (Necessario per PWA)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
